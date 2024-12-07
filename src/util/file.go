@@ -5,26 +5,56 @@ import (
 	"os"
 )
 
-type LineReader[T any] interface {
-	onLine(line string)
-	collect() *T
+type Reader interface {
+	OnLine(line string)
 }
 
-func ReadFileLines[T any](filePath string, reader LineReader[T]) (*T, error) {
+type LineReader interface {
+	OnLine(line string)
+	Done()
+}
+
+type LineReaderCollector[T any] interface {
+	OnLine(line string)
+	Collect() T
+}
+
+type LineReaderCollectorP[T any] interface {
+	OnLine(line string)
+	Collect() *T
+}
+
+func readLines(filePath string, reader Reader) error {
 	file, err := os.Open(filePath)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		reader.onLine(scanner.Text())
+		reader.OnLine(scanner.Text())
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, err
+		return err
 	}
 
-	return reader.collect(), nil
+	return nil
+}
+
+func ReadFile(filePath string, reader LineReader) error {
+	readLines(filePath, reader)
+	reader.Done()
+	return nil
+}
+
+func ReadFileCollect[T any](filePath string, reader LineReaderCollector[T]) (T, error) {
+	readLines(filePath, reader)
+	return reader.Collect(), nil
+}
+
+func ReadFileCollectP[T any](filePath string, reader LineReaderCollectorP[T]) (*T, error) {
+	readLines(filePath, reader)
+	return reader.Collect(), nil
 }
